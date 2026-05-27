@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warung Kelontong Digital</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <style>
+    :root { --shopee-orange: #ee4d2d; --shopee-green: #26aa99; }
+    body { background-color: #f5f5f5; font-family: -apple-system, Helvetica Neue, Helvetica, Roboto, Arial, sans-serif; padding-bottom: 100px; }
+    
+    .header-app { background: linear-gradient(180deg, var(--shopee-orange), #ff6633); color: white; padding: 15px 0; box-shadow: 0 4px 6px rgba(0,0,0,0.1); position: -webkit-sticky; position: sticky; top: 0; z-index: 1000; }
+    .search-box { border-radius: 20px; border: none; padding: 10px 20px; box-shadow: inset 0 1px 3px rgba(0,0,0,0.1); width: 100%; margin-bottom: 10px; }
+    .nav-tabs-custom { display: flex; overflow-x: auto; white-space: nowrap; gap: 10px; padding: 5px 0; margin-bottom: 15px; border: none; }
+    .nav-tabs-custom::-webkit-scrollbar { display: none; }
+    .btn-category { background: white; border: 1px solid #e0e0e0; border-radius: 20px; padding: 6px 15px; font-size: 14px; color: #555; font-weight: 500; transition: all 0.2s; }
+    .btn-category.active { background: var(--shopee-orange); color: white; border-color: var(--shopee-orange); }
+
+    .card-product { border: none; border-radius: 8px; background: white; overflow: hidden; box-shadow: 0 1px 2px rgba(0,0,0,0.05); transition: transform 0.2s; display: flex; flex-direction: column; height: 100%; position: relative; }
+    .card-product:hover { transform: translateY(-3px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .img-container { position: relative; width: 100%; padding-top: 100%; background: #f9f9f9; }
+    .img-container img { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+    .product-title { font-size: 14px; color: #333; line-height: 20px; height: 40px; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; margin-bottom: 8px; font-weight: 400; padding: 0 8px; }
+    .product-price { color: var(--shopee-orange); font-size: 16px; font-weight: 600; padding: 0 8px; margin-bottom: 8px; }
+    .product-footer { padding: 0 8px 10px 8px; margin-top: auto; }
+    
+    .badge-out-of-stock { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.6); color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 14px; z-index: 2; }
+    .badge-category { position: absolute; top: 8px; left: 8px; background: rgba(0, 0, 0, 0.5); color: white; font-size: 10px; padding: 3px 8px; border-radius: 10px; z-index: 1; }
+
+    .shopee-cart-bar { position: fixed; bottom: 0; left: 0; right: 0; background: white; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); padding: 15px; z-index: 999; display: flex; justify-content: space-between; align-items: center; }
+    .cart-info { font-size: 14px; color: #555; }
+    .cart-total { color: var(--shopee-orange); font-size: 20px; font-weight: bold; }
+    .btn-checkout { background-color: var(--shopee-orange); color: white; border: none; padding: 12px 35px; font-weight: bold; border-radius: 4px; font-size: 16px; transition: background 0.2s; }
+    .btn-checkout:hover { background-color: #d73c1f; color: white; }
+    
+    #loading-screen { text-align: center; padding: 100px 0; color: #888; }
+  </style>
+</head>
+<body>
+
+  <div class="header-app">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <h5 class="m-0 fw-bold"><i class="fa-solid fa-store me-2"></i> WARUNG BERKAH DIGITAL</h5>
+        <span class="badge bg-light text-dark shadow-sm"><i class="fa-solid fa-circle text-success me-1"></i> Buka</span>
+      </div>
+      <input type="text" id="search-input" class="search-box" placeholder="Cari barang kebutuhanmu di sini..." oninput="filterProducts()">
+    </div>
+  </div>
+  
+  <div class="container mt-3">
+    <div id="category-container" class="nav-tabs-custom"></div>
+
+    <div id="loading-screen">
+      <div class="spinner-border text-danger" role="status"></div>
+      <p class="mt-2">Memuat katalog warung kelontong...</p>
+    </div>
+    
+    <div class="row g-2" id="product-list" style="display: none;"></div>
+  </div>
+
+  <div class="shopee-cart-bar">
+    <div class="cart-info">
+      <div>Total <span id="cart-count" class="badge bg-secondary">0</span> barang:</div>
+      <div class="cart-total">Rp <span id="total-price">0</span></div>
+    </div>
+    <button class="btn btn-checkout shadow" onclick="openCheckoutModal()">
+      <i class="fa-solid fa-bag-shopping me-2"></i> Beli Sekarang
+    </button>
+  </div>
+
+  <div class="modal fade" id="checkoutModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Detail Pengiriman</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Nama Lengkap</label>
+            <input type="text" id="order-nama" class="form-control" placeholder="Masukkan nama Anda">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Alamat Lengkap</label>
+            <textarea id="order-alamat" class="form-control" rows="3" placeholder="Nama jalan, nomor rumah, RT/RW, dsb."></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Metode Pembayaran</label>
+            <select id="order-metode" class="form-select">
+              <option value="COD">Bayar Di Tempat (COD)</option>
+              <option value="QRIS">QRIS (Cashless)</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+          <button type="button" class="btn btn-danger text-white" onclick="submitCheckout()">Kirim Pesanan Via WA</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    // ⚠️ TEMPELKAN LINK WEB APP GOOGLE SCRIPT ANDA DI SINI
+    const URL_WEB_APP_GOOGLE = "https://script.googleusercontent.com/macros/echo?user_content_key=AUkAhnTTTdgsBeqph2sy9kTlNAOU5-O7Bd0Jsh6bABEW_HqViv30xxgJRnCRldCg574SvRl6U8Zs0IdbnUonUEJLUwmt7u1J-og0-no50KlNScHJ0XaGQBn6h3D1uZ57rBNMkVyoZCKvs59iW9gP8TgYS9PaUfb3qU_HHZVdCm-CLSfnBkL-bqvhHtM3LN8l_OL0h5Kn5Lwe624D3jmClLwIgsU-Tcpcg1W4i2n7Qqn1MBulhEwKkgiwQH6U3drg-b0ragdXvThd0vZYsYFn6xD8Y32GkXzxXw&lib=MyumTBozyPUG5vgbGA2bxx6KY7CWMzE5Q";
+    
+    const WA_ADMIN = "6281362914534"; 
+
+    let cart = [];
+    let allProducts = [];
+    let activeCategory = "Semua";
+    let bootstrapModal;
+
+    window.onload = () => {
+      bootstrapModal = new bootstrap.Modal(document.getElementById('checkoutModal'));
+      loadData();
+    };
+
+    function loadData() {
+      fetch(URL_WEB_APP_GOOGLE)
+        .then(response => response.json())
+        .then(data => {
+          if(data.length === 0) {
+            document.getElementById('loading-screen').innerHTML = "<p class='text-warning'>Katalog kosong. Periksa data di Google Sheets Anda.</p>";
+            return;
+          }
+          allProducts = data;
+          document.getElementById('loading-screen').style.display = 'none';
+          document.getElementById('product-list').style.display = 'flex';
+          renderCategories();
+          renderProducts();
+        })
+        .catch(err => {
+          console.error(err);
+          document.getElementById('loading-screen').innerHTML = "<p class='text-danger'>Gagal memuat database Google Sheets.</p>";
+        });
+    }
+
+    function renderCategories() {
+      const container = document.getElementById('category-container');
+      let categories = ["Semua"];
+      allProducts.forEach(p => {
+        if (p.kategori && !categories.includes(p.kategori)) categories.push(p.kategori);
+      });
+
+      container.innerHTML = categories.map(cat => `
+        <button class="btn-category ${cat === activeCategory ? 'active' : ''}" onclick="changeCategory('${cat}')">
+          ${cat}
+        </button>
+      `).join('');
+    }
+
+    function changeCategory(cat) {
+      activeCategory = cat;
+      renderCategories();
+      renderProducts();
+    }
+
+    function renderProducts() {
+      const list = document.getElementById('product-list');
+      const keyword = document.getElementById('search-input').value.toLowerCase();
+      list.innerHTML = ""; 
+
+      let filtered = allProducts.filter(p => {
+        const matchesCat = (activeCategory === "Semua" || p.kategori === activeCategory);
+        const matchesKey = p.nama && p.nama.toLowerCase().includes(keyword);
+        return matchesCat && matchesKey;
+      });
+
+      if (filtered.length === 0) {
+        list.innerHTML = `<div class="col-12 text-center text-muted my-5">Produk tidak ditemukan.</div>`;
+        return;
+      }
+
+      filtered.forEach((p) => {
+        const globalIdx = allProducts.findIndex(ap => ap.nama === p.nama);
+        const isOut = p.stok <= 0;
+
+        list.innerHTML += `
+          <div class="col-6 col-md-4 col-lg-3">
+            <div class="card card-product">
+              ${isOut ? '<div class="badge-out-of-stock">STOK HABIS</div>' : ''}
+              <span class="badge-category">${p.kategori || 'Umum'}</span>
+              <div class="img-container">
+                <img src="${p.img || 'https://via.placeholder.com/150'}" alt="${p.nama}">
+              </div>
+              <div class="product-title mt-2">${p.nama}</div>
+              <div class="product-price">Rp ${(p.harga || 0).toLocaleString('id-ID')}</div>
+              <div class="product-footer">
+                <button class="btn btn-sm w-100 ${isOut ? 'btn-secondary' : 'btn-danger'}" 
+                        onclick="addToCart(${globalIdx})" ${isOut ? 'disabled' : ''}>
+                  <i class="fa-solid fa-cart-plus me-1"></i> + Keranjang
+                </button>
+              </div>
+            </div>
+          </div>`;
+      });
+    }
+
+    function filterProducts() {
+      renderProducts();
+    }
+
+    function addToCart(idx) {
+      cart.push(allProducts[idx]);
+      updateTotal();
+    }
+
+    function updateTotal() {
+      const total = cart.reduce((sum, item) => sum + item.harga, 0);
+      document.getElementById('total-price').innerText = total.toLocaleString('id-ID');
+      document.getElementById('cart-count').innerText = cart.length;
+    }
+
+    function openCheckoutModal() {
+      if (cart.length === 0) {
+        alert("Keranjang belanjaan Anda kosong!");
+        return;
+      }
+      bootstrapModal.show();
+    }
+
+    function submitCheckout() {
+      const nama = document.getElementById('order-nama').value.trim();
+      const alamat = document.getElementById('order-alamat').value.trim();
+      const metode = document.getElementById('order-metode').value;
+
+      if (!nama || !alamat) {
+        alert("Mohon lengkapi Nama dan Alamat pengiriman Anda!");
+        return;
+      }
+
+      bootstrapModal.hide();
+      const totalBelanja = cart.reduce((sum, item) => sum + item.harga, 0);
+      
+      let grouped = {};
+      cart.forEach(item => { grouped[item.nama] = (grouped[item.nama] || 0) + 1; });
+      
+      let itemsArray = [];
+      let waTextItems = "";
+      for (let key in grouped) {
+        itemsArray.push(`${key} (${grouped[key]}x)`);
+        waTextItems += `- ${key} *(x${grouped[key]})*\n`;
+      }
+
+      const orderData = { nama, alamat, metode, total: totalBelanja, items: itemsArray };
+      
+      // Kirim ke Google Sheets via POST
+      fetch(URL_WEB_APP_GOOGLE, {
+        method: "POST",
+        body: JSON.stringify(orderData)
+      }).catch(err => console.error("Gagal simpan log:", err));
+
+      // Redirect WA
+      let waMessage = `*🛍️ PESANAN BARU - WARUNG DIGITAL*\n==============================\n*Nama Pembeli :* ${nama}\n*Alamat Kirim :* ${alamat}\n==============================\n\n*Daftar Belanjaan :*\n${waTextItems}\n*Total Pembayaran :* Rp ${totalBelanja.toLocaleString('id-ID')}\n*Metode Pembayaran :* *${metode}*\n\n==============================\n`;
+      waMessage += (metode === "QRIS") ? `_Silakan kirimkan bukti transfer Anda di chat ini._` : `_Mohon disiapkan uang pas, kurir toko akan segera menuju ke tempat Anda._`;
+
+      window.location.href = `https://wa.me/${WA_ADMIN}?text=${encodeURIComponent(waMessage)}`;
+      
+      cart = [];
+      updateTotal();
+      document.getElementById('order-nama').value = "";
+      document.getElementById('order-alamat').value = "";
+    }
+  </script>
+</body>
+</html>
